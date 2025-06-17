@@ -1,3 +1,19 @@
+# == DO NOT EDIT THE FOLLOWING LINES for the Raspberry Pi Pico VS Code Extension to work ==
+if(WIN32)
+    set(USERHOME $ENV{USERPROFILE})
+else()
+    set(USERHOME $ENV{HOME})
+endif()
+set(sdkVersion 2.1.1)
+set(toolchainVersion 14_2_Rel1)
+set(picotoolVersion 2.1.1)
+set(picoVscode ${USERHOME}/.pico-sdk/cmake/pico-vscode.cmake)
+if (EXISTS ${picoVscode})
+    include(${picoVscode})
+endif()
+# ====================================================================================
+set(PICO_BOARD pico CACHE STRING "Board type")
+
 # Demo cmake rules for the can2040 example using Pico SDK
 #
 # This is a minimal set of build rules.  See the PICO SDK
@@ -31,3 +47,5 @@ pico_enable_stdio_usb(canexample 1)
 pico_enable_stdio_uart(canexample 0)
 
 pico_add_extra_outputs(canexample)
+
+string(APPEND CMAKE_EXE_LINKER_FLAGS "-Wl,--print-memory-usage")
