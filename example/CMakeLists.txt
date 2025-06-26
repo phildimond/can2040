@@ -32,13 +32,13 @@ set(PICO_SDK_FETCH_FROM_GIT on)
 
 include(pico_sdk_import.cmake)
 
-project(can2040_example)
+project(canexample)
 
 pico_sdk_init()
 
 add_executable(canexample
     canexample.c
-    ../src/can2040.c
+    can2040.c
 )
 
 pico_set_binary_type(canexample copy_to_ram)

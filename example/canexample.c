@@ -25,8 +25,8 @@ can2040_cb(struct can2040 *cd, uint32_t notify, struct can2040_msg *msg)
     if (notify == CAN2040_NOTIFY_RX) {
         // Example message filter
         uint32_t id = msg->id;
-        if (id < 0x101 || id > 0x201)
-            return;
+//        if (id < 0x101 || id > 0x201)
+//            return;
 
         // Add to queue
         uint32_t push_pos = MessageQueue.push_pos;
@@ -51,7 +51,7 @@ void
 canbus_setup(void)
 {
     uint32_t pio_num = 0;
-    uint32_t sys_clock = SYS_CLK_HZ, bitrate = 500000;
+    uint32_t sys_clock = SYS_CLK_HZ, bitrate = 125000;
     uint32_t gpio_rx = 4, gpio_tx = 5;
 
     // Setup canbus
@@ -67,39 +67,70 @@ canbus_setup(void)
     can2040_start(&cbus, sys_clock, bitrate, gpio_rx, gpio_tx);
 }
 
+#define LED_PIN 25
+
 int
 main(void)
 {
     stdio_init_all();
     canbus_setup();
 
+    gpio_init(LED_PIN); // Initialize the LED pin
+    gpio_set_dir(LED_PIN, GPIO_OUT); // Set the LED pin as an output
+
+    sleep_ms(1500);
+    printf("CAN Bus example running.\n");
+
     // Main loop
+    uint64_t lastTxTrigger = 0;
+    uint64_t lastLedFlash = 0;
     for (;;) {
         uint32_t push_pos = MessageQueue.push_pos;
         uint32_t pull_pos = MessageQueue.pull_pos;
-        if (push_pos == pull_pos)
-            // No new messages read.
-            continue;
+        struct can2040_msg msg;
+        if (push_pos != pull_pos) {
+            // Pop message from local receive queue
+            struct can2040_msg *qmsg = &MessageQueue.queue[pull_pos % QUEUE_SIZE];
+            msg = *qmsg;
+            MessageQueue.pull_pos++;
 
-        // Pop message from local receive queue
-        struct can2040_msg *qmsg = &MessageQueue.queue[pull_pos % QUEUE_SIZE];
-        struct can2040_msg msg = *qmsg;
-        MessageQueue.pull_pos++;
+            // Report message found on local receive queue
+            printf("msg: id=0x%x dlc=%d data=%02x%02x%02x%02x%02x%02x%02x%02x\n",
+                msg.id, msg.dlc, msg.data[0], msg.data[1], msg.data[2],
+                msg.data[3], msg.data[4], msg.data[5], msg.data[6], msg.data[7]);
 
-        // Report message found on local receive queue
-        printf("msg: id=0x%x dlc=%d data=%02x%02x%02x%02x%02x%02x%02x%02x\n",
-               msg.id, msg.dlc, msg.data[0], msg.data[1], msg.data[2],
-               msg.data[3], msg.data[4], msg.data[5], msg.data[6], msg.data[7]);
+            bool openLcbFrame = false; 
+            if (msg.id & 0x8000000) { openLcbFrame = true; }
+            if (openLcbFrame) { printf("Frame Type = OpenLCB Message\n"); }
+            else { printf("\tFrame Type = CAN Control Frame\n"); }
 
-        // Demo of message transmit
-        if (msg.id == 0x101) {
-            struct can2040_msg tmsg;
-            tmsg.id = 0x102;
-            tmsg.dlc = 8;
-            tmsg.data32[0] = 0xabcd;
-            tmsg.data32[1] = msg.data32[0];
-            int sts = can2040_transmit(&cbus, &tmsg);
-            printf("Sent message (status=%d)\n", sts);
+            uint32_t content = (msg.id & 0x007FF000) >> 12;
+            printf("\tContent = 0x%03X\n", content);
+
+            uint32_t sourceNidAlias = (msg.id & 0x00000FFF);
+            printf("\tSource NID Alias = 0x%03X\n", sourceNidAlias);
+        }
+
+/*        
+        if (time_us_64() - lastTxTrigger > 1000000) {
+            lastTxTrigger = time_us_64();
+            // Demo of message transmit
+//            if (msg.id == 0x101) {
+                struct can2040_msg tmsg;
+                tmsg.id = 0x102;
+                tmsg.dlc = 8;
+                tmsg.data32[0] = 0xabcd;
+                tmsg.data32[1] = 0x01020304; // msg.data32[0];
+                int sts = can2040_transmit(&cbus, &tmsg);
+                printf("Sent message (status=%d)\n", sts);
+//            }
+        }
+*/
+
+        if (time_us_64() - lastLedFlash > 250000) {
+            lastLedFlash = time_us_64();
+            // Invert LED State
+            gpio_put(LED_PIN, !gpio_get(LED_PIN));
         }
     }
 
