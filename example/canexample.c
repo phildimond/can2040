@@ -101,7 +101,22 @@ main(void)
 
             bool openLcbFrame = false; 
             if (msg.id & 0x8000000) { openLcbFrame = true; }
-            if (openLcbFrame) { printf("Frame Type = OpenLCB Message\n"); }
+            if (openLcbFrame) { 
+                printf("Frame Type = OpenLCB Message\n"); 
+
+                uint16_t canMTI = (uint16_t)((msg.id & 0x07FFF000) >> 12);
+                printf("\tCAN MTI = 0x%04X\n", canMTI); 
+
+                printf("\t\tCAN MTI Reserved Field = %u\n", canMTI & 0xC000 >> 14); 
+                printf("\t\tCAN MTI 1=do not forward = %u\n", canMTI & 0x2000 >> 13); 
+                printf("\t\tCAN MTI 0=regular message, 1=stream/datagram = %u\n", canMTI & 0x1000 >> 12); 
+                printf("\t\tCAN MTI Gross message priority = %u\n", canMTI & 0x0C00 >> 10); 
+                printf("\t\tCAN MTI Minor priority determination = %u\n", canMTI & 0x03E0 >> 5); 
+                printf("\t\tCAN MTI 1=should be handled by simple nodes = %u\n", canMTI & 0x0010 >> 4); 
+                printf("\t\tCAN MTI 1=has a destination address-field = %u\n", canMTI & 0x0008 >> 3); 
+                printf("\t\tCAN MTI 1=This message has an event-field = %u\n", canMTI & 0x0004 >> 2); 
+                printf("\t\tCAN MTI Message-specific extra information = %u\n", canMTI & 0x0003); 
+            }
             else { 
                 printf("\tFrame Type = CAN Control Frame\n"); 
 
