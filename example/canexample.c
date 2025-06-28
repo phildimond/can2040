@@ -104,24 +104,27 @@ main(void)
             if (openLcbFrame) { printf("Frame Type = OpenLCB Message\n"); }
             else { 
                 printf("\tFrame Type = CAN Control Frame\n"); 
-                if (openLcbFrame < 0x700) { 
-                    printf ("\tCheck ID Frame.\n"); 
-                } else if (openLcbFrame == 0x700) { printf ("\tReserve ID Frame.\n"); }
-                else if (openLcbFrame == 0x701) { printf ("\tAlias Map Definition Frame.\n"); }
-                else if (openLcbFrame == 0x702) { printf ("\tAlias Mapping Enquiry(AME) Frame.\n"); }
-                else if (openLcbFrame == 0x703) { printf ("\tAlias Map Reset (AMR) Frame.\n"); }
-                else if (openLcbFrame == 0x710) { printf ("\tError Information Report 0.\n"); }
-                else if (openLcbFrame == 0x711) { printf ("\tError Information Report 1.\n"); }
-                else if (openLcbFrame == 0x712) { printf ("\tError Information Report 2.\n"); }
-                else if (openLcbFrame == 0x713) { printf ("\tError Information Report 3.\n"); }
-                else { printf ("\tReserved Frame Type - should not have been sent!.\n"); }
+
+                uint32_t content = (msg.id & 0x07FFF000) >> 12;
+                printf("\tContent = 0x%04X\n", content);
+                
+                if (content == 0x0700) { printf ("\t\tReserve ID Frame.\n"); }
+                else if (content == 0x0701) { printf ("\t\tAlias Map Definition Frame.\n"); }
+                else if (content == 0x0702) { printf ("\t\tAlias Mapping Enquiry(AME) Frame.\n"); }
+                else if (content == 0x0703) { printf ("\t\tAlias Map Reset (AMR) Frame.\n"); }
+                else if (content == 0x0710) { printf ("\t\tError Information Report 0.\n"); }
+                else if (content == 0x0711) { printf ("\t\tError Information Report 1.\n"); }
+                else if (content == 0x0712) { printf ("\t\tError Information Report 2.\n"); }
+                else if (content == 0x0713) { printf ("\t\tError Information Report 3.\n"); }
+                else if (content > 0x1000) { printf ("\t\tCheck ID Frame.\n"); }
+                else { printf ("\t\tReserved Frame Type - should not have been sent!.\n"); }
+
+                uint32_t frameSeqNum = content >> 12;
+                uint32_t sourceNidAlias = (msg.id & 0x00000FFF);
+                printf("\t\t\tFrame sequence number = %u\n", frameSeqNum);
+                printf("\t\t\tNode ID being checked = 0x%03X\n", content & 0xFFF);
+                printf("\t\t\tSource NID Alias = 0x%03X\n", sourceNidAlias);
             }
-
-            uint32_t content = (msg.id & 0x007FF000) >> 12;
-            printf("\tContent = 0x%03X\n", content);
-
-            uint32_t sourceNidAlias = (msg.id & 0x00000FFF);
-            printf("\tSource NID Alias = 0x%03X\n", sourceNidAlias);
         }
 
 /*        
