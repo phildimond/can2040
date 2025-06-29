@@ -2,6 +2,8 @@
 //
 // See the CMakeLists.txt file for information on compiling.
 
+#pragma GCC optimize ("O0") // *********** OPTIMISER LEVEL **************
+
 #include <pico/stdlib.h>
 #include <stdio.h>
 
@@ -104,18 +106,79 @@ main(void)
             if (openLcbFrame) { 
                 printf("Frame Type = OpenLCB Message\n"); 
 
-                uint16_t canMTI = (uint16_t)((msg.id & 0x07FFF000) >> 12);
-                printf("\tCAN MTI = 0x%04X\n", canMTI); 
+                uint8_t frameFormat = (uint8_t)((msg.id & 0x07000000) >> 24);
+                uint16_t canMTI = (uint16_t)((msg.id & 0x00FFF000) >> 12);
+                printf("\tFrame Format = %u and CAN MTI = 0x%04X\n", frameFormat, canMTI); 
 
-                printf("\t\tCAN MTI Reserved Field = %u\n", canMTI & 0xC000 >> 14); 
-                printf("\t\tCAN MTI 1=do not forward = %u\n", canMTI & 0x2000 >> 13); 
-                printf("\t\tCAN MTI 0=regular message, 1=stream/datagram = %u\n", canMTI & 0x1000 >> 12); 
-                printf("\t\tCAN MTI Gross message priority = %u\n", canMTI & 0x0C00 >> 10); 
-                printf("\t\tCAN MTI Minor priority determination = %u\n", canMTI & 0x03E0 >> 5); 
-                printf("\t\tCAN MTI 1=should be handled by simple nodes = %u\n", canMTI & 0x0010 >> 4); 
-                printf("\t\tCAN MTI 1=has a destination address-field = %u\n", canMTI & 0x0008 >> 3); 
-                printf("\t\tCAN MTI 1=This message has an event-field = %u\n", canMTI & 0x0004 >> 2); 
-                printf("\t\tCAN MTI Message-specific extra information = %u\n", canMTI & 0x0003); 
+                if (frameFormat == 0) {
+                    printf("\tFrame Format = RESERVED.\n");
+                } else if (frameFormat == 1) {
+                    printf("\tGlobal & Addressed MTI Frame Format\n");
+                    uint8_t grossPriority = (msg.id & 0x00C00000) >> 22;
+                    uint8_t typeWithinPriority = (msg.id & 0x003E0000) >> 17;
+                    uint8_t simpleProtocol = (msg.id & 0x00010000) >> 16;
+                    uint8_t addressPresent = (msg.id & 0x00008000) >> 15;
+                    uint8_t eventPresent = (msg.id & 0x00004000) >> 14;
+                    uint8_t messageModifier = (msg.id & 0x00003000) >> 12;
+                    uint16_t sourceAddress = msg.id & 0x00000FFF;
+                    uint64_t nodeAddress = ((uint64_t)(msg.data[0]) << 40) | ((uint64_t)(msg.data[1]) << 32) |
+                                           ((uint64_t)(msg.data[2]) << 24) | ((uint64_t)(msg.data[3]) << 16) | 
+                                           ((uint64_t)(msg.data[4]) << 8) | ((uint64_t)(msg.data[5]));
+
+                    printf("\t\tCAN MTI Gross message priority = %u\n", grossPriority); 
+                    printf("\t\tCAN MTI Minor priority determination = %u\n", typeWithinPriority); 
+                    printf("\t\tCAN MTI 1=should be handled by simple nodes = %u\n", simpleProtocol); 
+                    printf("\t\tCAN MTI 1=has a destination address-field = %u\n", addressPresent); 
+                    printf("\t\tCAN MTI 1=This message has an event-field = %u\n", eventPresent); 
+                    printf("\t\tCAN MTI Message-specific extra information = %u\n", messageModifier); 
+
+                    switch (grossPriority) {
+                        case 0x00: switch (typeWithinPriority) {
+                            case 0x08: 
+                                printf("\t\t\tInitialisation Complete message from 0x%03X, node 0x%012llX\n", sourceAddress, nodeAddress); 
+                                break;
+                            default: 
+                                printf("\t\t\tUndeciphered message.\n"); 
+                                break;
+                        }; break;
+                        case 0x01: switch (typeWithinPriority) {
+                            case 0x06:
+                                switch (messageModifier) {
+                                    case 0: 
+                                        printf("\t\t\tConsumer Identified - Valid message.\n"); 
+                                        break;
+                                    case 1: 
+                                        printf("\t\t\tConsumer Identified - Invalid message.\n"); 
+                                        break;
+                                    case 3:
+                                        printf("\t\t\tConsumer Identified - Unknown message.\n"); 
+                                        break;
+                                    default:
+                                        break;
+                                } 
+                                break;
+                            default: 
+                                printf("\t\t\tUndeciphered message.\n"); 
+                                break;
+                        }; 
+                        break;
+                        default: 
+                            printf("\t\t\tUndeciphered message.\n"); 
+                            break;
+                    }
+                } else if (frameFormat == 2) {
+                    printf("\tFrame Format = Datagram complete in frame.\n");
+                } else if (frameFormat == 3) {
+                    printf("\tFrame Format = Datagram first frame.\n");
+                } else if (frameFormat == 4) {
+                    printf("\tFrame Format = Datagram middle frame.\n");
+                } else if (frameFormat == 5) {
+                    printf("\tFrame Format = Datagram final frame.\n");
+                } else if (frameFormat == 6) {
+                    printf("\tFrame Format = RESERVED.\n");
+                } else if (frameFormat == 7) {
+                    printf("\tFrame Format = Stream Data.\n");
+                }
             }
             else { 
                 printf("\tFrame Type = CAN Control Frame\n"); 

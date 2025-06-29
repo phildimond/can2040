@@ -49,3 +49,4 @@ pico_enable_stdio_uart(canexample 0)
 pico_add_extra_outputs(canexample)
 
 string(APPEND CMAKE_EXE_LINKER_FLAGS "-Wl,--print-memory-usage")
+
